@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import shutil
 import tempfile
+import tomllib
 
 
 def parse_args() -> argparse.Namespace:
@@ -19,6 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--remove", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--backup-dir", type=Path)
+    parser.add_argument("--toml", action="store_true")
     return parser.parse_args()
 
 
@@ -71,6 +73,12 @@ def main() -> int:
         updated = replace_block(original, args.start, args.end, body)
     except ValueError as error:
         raise SystemExit(str(error)) from error
+
+    if args.toml:
+        try:
+            tomllib.loads(updated)
+        except tomllib.TOMLDecodeError as error:
+            raise SystemExit(f"managed update would create invalid TOML: {error}") from error
 
     if updated == original:
         print(f"unchanged: {args.file}")

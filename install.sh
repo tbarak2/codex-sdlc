@@ -68,9 +68,43 @@ bash "$package_root/scripts/validate-package.sh"
 
 temporary_dir="$(mktemp -d)"
 trap 'rm -rf -- "$temporary_dir"' EXIT
-timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 backup_dir="$codex_home/backups/codex-sdlc/$timestamp"
 manifest="$codex_home/codex-sdlc-install-manifest.tsv"
+
+python3 - "$codex_home/config.toml" <<'PY'
+from pathlib import Path
+import sys
+import tomllib
+
+path = Path(sys.argv[1])
+if not path.exists():
+    raise SystemExit(0)
+
+text = path.read_text(encoding="utf-8")
+start = "# codex-sdlc:start"
+end = "# codex-sdlc:end"
+if text.count(start) != text.count(end) or text.count(start) > 1:
+    raise SystemExit("config.toml has unbalanced or duplicate codex-sdlc markers")
+if start in text:
+    before, remainder = text.split(start, 1)
+    _, after = remainder.split(end, 1)
+    text = before + after
+
+try:
+    data = tomllib.loads(text)
+except tomllib.TOMLDecodeError as error:
+    raise SystemExit(f"existing config.toml is invalid: {error}") from error
+
+reserved = {
+    "sdlc-pm", "sdlc-architect", "sdlc-ui", "sdlc-developer",
+    "sdlc-qa", "sdlc-ui-qa", "sdlc-security", "sdlc-devops",
+}
+collisions = reserved.intersection(data.get("agents", {}))
+if collisions:
+    names = ", ".join(sorted(collisions))
+    raise SystemExit(f"unmanaged Codex agent name collision: {names}")
+PY
 
 if [[ "$dry_run" == true ]]; then
   echo "DRY RUN: target $codex_home"
@@ -153,6 +187,7 @@ config_args=(
   --end '# codex-sdlc:end'
   --content-file "$temporary_dir/config-body.toml"
   --backup-dir "$backup_dir"
+  --toml
 )
 [[ "$dry_run" == true ]] && config_args+=(--dry-run)
 python3 "$package_root/scripts/managed_block.py" "${config_args[@]}"

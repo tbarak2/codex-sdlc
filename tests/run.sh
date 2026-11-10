@@ -8,6 +8,7 @@ bash -n "$root"/tests/*.sh
 
 for test_file in \
   "$root/tests/installer-test.sh" \
+  "$root/tests/collision-test.sh" \
   "$root/tests/idempotency-test.sh" \
   "$root/tests/uninstall-test.sh" \
   "$root/tests/package-contract-test.sh" \
