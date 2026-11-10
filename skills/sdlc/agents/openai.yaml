@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gated SDLC"
+  short_description: "Run the portable feature and bug-fix workflow"
+  default_prompt: "Use $sdlc to take this software change through the appropriate gated lifecycle."
